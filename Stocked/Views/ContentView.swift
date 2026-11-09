@@ -48,6 +48,15 @@ struct MainTabs: View {
                 .badge(listItems.count)
                 .tag(AppTab.list)
         }
+        .onOpenURL { url in
+            // stocked://list and stocked://scan, used by the widget.
+            switch url.host {
+            case "list": tab = .list
+            case "scan": tab = .scan
+            case "kitchen": tab = .kitchen
+            default: break
+            }
+        }
     }
 }
 

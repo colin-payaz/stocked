@@ -96,3 +96,5 @@ enum Barcode {
         return a.drop(while: { $0 == "0" }) == b.drop(while: { $0 == "0" })
     }
 }
+
+extension Item: Identifiable {}
