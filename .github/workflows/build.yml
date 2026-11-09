@@ -49,7 +49,7 @@ jobs:
             xcrun simctl ui "$DEVICE" appearance $MODE
             for TAB in kitchen list scan; do
               xcrun simctl terminate "$DEVICE" com.payaz.Stocked || true
-              xcrun simctl launch --console-pty --terminate-running-process "$DEVICE" com.payaz.Stocked -demoData YES -startTab $TAB > "screenshots/console-$TAB-$MODE.txt" 2>&1 &
+              xcrun simctl launch --console-pty --terminate-running-process "$DEVICE" com.payaz.Stocked -demoData YES -disableCloudSync YES -startTab $TAB > "screenshots/console-$TAB-$MODE.txt" 2>&1 &
               sleep 9
               xcrun simctl io "$DEVICE" screenshot "screenshots/$TAB-$MODE.png"
             done

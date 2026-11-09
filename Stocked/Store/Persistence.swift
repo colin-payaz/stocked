@@ -22,11 +22,18 @@ final class PersistenceController {
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
+        // Unsigned Simulator builds (like the screenshot run) have no iCloud entitlement,
+        // and CloudKit stops the app if it tries to sync. `-disableCloudSync YES` turns sync off.
+        var syncs = !inMemory
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "disableCloudSync") { syncs = false }
+        #endif
+
         let privateURL = directory.appendingPathComponent("Stocked-private.sqlite")
         let sharedURL = directory.appendingPathComponent("Stocked-shared.sqlite")
         container.persistentStoreDescriptions = [
-            Self.description(url: privateURL, scope: .private, syncs: !inMemory),
-            Self.description(url: sharedURL, scope: .shared, syncs: !inMemory),
+            Self.description(url: privateURL, scope: .private, syncs: syncs),
+            Self.description(url: sharedURL, scope: .shared, syncs: syncs),
         ]
 
         container.loadPersistentStores { description, error in
