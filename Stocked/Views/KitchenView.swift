@@ -1,14 +1,22 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct KitchenView: View {
+    let kitchen: Kitchen
     var onScan: () -> Void
 
-    @Environment(\.modelContext) private var context
-    @Query(sort: \Item.name) private var allItems: [Item]
+    @EnvironmentObject private var store: KitchenStore
+    @FetchRequest private var allItems: FetchedResults<Item>
     @State private var search = ""
     @State private var filter: Category?
     @State private var showingAdd = false
+    @State private var showingHousehold = false
+
+    init(kitchen: Kitchen, onScan: @escaping () -> Void) {
+        self.kitchen = kitchen
+        self.onScan = onScan
+        _allItems = FetchRequest(fetchRequest: Item.request(in: kitchen), animation: .default)
+    }
 
     private var kitchenItems: [Item] { allItems.filter(\.showsInKitchen) }
 
@@ -21,10 +29,17 @@ struct KitchenView: View {
         }
     }
 
+    private var useSoon: [Item] {
+        visibleItems.filter(\.useSoon).sorted { ($0.bestBefore ?? .distantFuture) < ($1.bestBefore ?? .distantFuture) }
+    }
+
     private var summary: String {
         let inStock = kitchenItems.filter(\.inStock).count
         let runOut = kitchenItems.count - inStock
-        return runOut > 0 ? "\(inStock) in stock · \(runOut) run out" : "\(inStock) in stock"
+        var parts = ["\(inStock) in stock"]
+        if runOut > 0 { parts.append("\(runOut) run out") }
+        if store.share != nil { parts.append("shared") }
+        return parts.joined(separator: " · ")
     }
 
     var body: some View {
@@ -33,41 +48,26 @@ struct KitchenView: View {
                 if !kitchenItems.isEmpty && search.isEmpty {
                     Section {
                     } header: {
-                        Text(summary)
-                            .textCase(nil)
+                        Text(summary).textCase(nil)
                     }
                 }
+
+                if !useSoon.isEmpty {
+                    Section {
+                        ForEach(useSoon) { item in
+                            itemLink(item)
+                        }
+                    } header: {
+                        Label("Use Soon", systemImage: "clock.badge.exclamationmark")
+                    }
+                }
+
                 ForEach(Category.allCases) { category in
                     let rows = visibleItems.filter { $0.category == category }
                     if !rows.isEmpty {
                         Section(category.name) {
                             ForEach(rows) { item in
-                                NavigationLink(value: item) {
-                                    ItemRow(item: item)
-                                }
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        context.delete(item)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                    if item.inStock {
-                                        Button {
-                                            withAnimation { item.useOne() }
-                                        } label: {
-                                            Label("Used One", systemImage: "minus.circle")
-                                        }
-                                        .tint(.orange)
-                                    }
-                                }
-                                .swipeActions(edge: .leading) {
-                                    Button {
-                                        withAnimation { item.addOne() }
-                                    } label: {
-                                        Label("Add One", systemImage: "plus.circle")
-                                    }
-                                    .tint(.green)
-                                }
+                                itemLink(item)
                             }
                         }
                     }
@@ -79,7 +79,7 @@ struct KitchenView: View {
                 ItemDetailView(item: item)
             }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItemGroup(placement: .topBarLeading) {
                     Menu {
                         Picker("Show", selection: $filter) {
                             Label("All Items", systemImage: "square.stack").tag(Category?.none)
@@ -94,7 +94,13 @@ struct KitchenView: View {
                     }
                     .accessibilityLabel("Filter by category")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        showingHousehold = true
+                    } label: {
+                        Image(systemName: store.share == nil ? "person.2" : "person.2.fill")
+                    }
+                    .accessibilityLabel("Household")
                     Button {
                         showingAdd = true
                     } label: {
@@ -128,11 +134,44 @@ struct KitchenView: View {
             .sheet(isPresented: $showingAdd) {
                 NewItemView(barcode: nil)
             }
+            .sheet(isPresented: $showingHousehold) {
+                HouseholdView()
+            }
+        }
+    }
+
+    private func itemLink(_ item: Item) -> some View {
+        NavigationLink(value: item) {
+            ItemRow(item: item)
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                store.delete(item)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            if item.inStock {
+                Button {
+                    withAnimation { item.useOne() }
+                } label: {
+                    Label("Used One", systemImage: "minus.circle")
+                }
+                .tint(.orange)
+            }
+        }
+        .swipeActions(edge: .leading) {
+            Button {
+                withAnimation { item.addOne() }
+            } label: {
+                Label("Add One", systemImage: "plus.circle")
+            }
+            .tint(.green)
         }
     }
 }
 
 #Preview {
-    KitchenView(onScan: {})
-        .modelContainer(PreviewData.container)
+    KitchenView(kitchen: PreviewData.kitchen, onScan: {})
+        .environmentObject(PreviewData.store)
+        .environment(\.managedObjectContext, PreviewData.store.context)
 }

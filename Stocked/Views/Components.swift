@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Coloured rounded tile with the category's symbol, like the Settings app.
 struct CategoryIcon: View {
@@ -18,35 +18,54 @@ struct CategoryIcon: View {
 
 /// A list row for an item in the kitchen.
 struct ItemRow: View {
-    let item: Item
+    @ObservedObject var item: Item
+
+    private var detail: (text: String, color: Color)? {
+        if let text = item.bestBeforeText, item.inStock, let days = item.daysUntilBestBefore, days <= 3 {
+            return (text, days < 0 ? .red : .orange)
+        }
+        if item.isLow { return ("Low: keep \(item.minQuantity)", .orange) }
+        if item.onList { return ("On shopping list", .secondary) }
+        return nil
+    }
 
     var body: some View {
         HStack(spacing: 12) {
             CategoryIcon(category: item.category)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name.isEmpty ? "Unnamed Item" : item.name)
+                Text(item.displayName)
                     .lineLimit(1)
-                if item.onList {
-                    Text("On shopping list")
+                if let detail {
+                    Text(detail.text)
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(detail.color)
+                        .lineLimit(1)
                 }
             }
             Spacer(minLength: 8)
             if item.inStock {
                 Text("\(item.quantity)")
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(item.isLow ? Color.orange : Color.secondary)
             } else {
-                Text("Run Out")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(.red.opacity(0.12), in: Capsule())
+                Pill(text: "Run Out", color: .red)
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+struct Pill: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.12), in: Capsule())
     }
 }
 
@@ -123,20 +142,27 @@ struct StatusHeader: View {
 /// Sample data for SwiftUI previews only.
 @MainActor
 enum PreviewData {
-    static let container: ModelContainer = {
-        let container = try! ModelContainer(for: Item.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let samples: [Item] = [
-            Item(name: "Ground Cumin", category: .herbs, quantity: 1),
-            Item(name: "Smoked Paprika", category: .herbs, quantity: 1),
-            Item(name: "Basmati Rice 1kg", category: .dry, quantity: 2),
-            Item(name: "Penne Pasta 500g", category: .dry, quantity: 3),
-            Item(name: "Chopped Tomatoes 400g", barcode: "5000157024671", category: .tinned, quantity: 4),
-            Item(name: "Chickpeas 400g", category: .tinned, quantity: 0, onList: true),
-            Item(name: "Greek Yoghurt", category: .fridge, quantity: 1),
-            Item(name: "Frozen Peas", category: .freezer, quantity: 1),
+    static let store: KitchenStore = {
+        let store = KitchenStore(persistence: PersistenceController(inMemory: true))
+        let samples: [(String, Category, Int64)] = [
+            ("Ground Cumin", .herbs, 1),
+            ("Smoked Paprika", .herbs, 1),
+            ("Basmati Rice 1kg", .dry, 2),
+            ("Penne Pasta 500g", .dry, 3),
+            ("Chopped Tomatoes 400g", .tinned, 4),
+            ("Greek Yoghurt", .fridge, 1),
+            ("Frozen Peas", .freezer, 1),
         ]
-        samples[5].everStocked = true
-        samples.forEach { container.mainContext.insert($0) }
-        return container
+        for (name, category, quantity) in samples {
+            store.newItem(name: name, category: category, quantity: quantity)
+        }
+        store.newItem(name: "Milk", category: .fridge, quantity: 1, bestBefore: Calendar.current.date(byAdding: .day, value: 1, to: .now))
+        if let chickpeas = store.newItem(name: "Chickpeas 400g", category: .tinned, quantity: 0, onList: true) {
+            chickpeas.everStocked = true
+        }
+        store.save()
+        return store
     }()
+
+    static var kitchen: Kitchen { store.kitchen! }
 }

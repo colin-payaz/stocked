@@ -1,15 +1,18 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Add a new item, either from a scanned barcode or typed by hand.
 struct NewItemView: View {
     let barcode: String?
+    var startOnList = false
 
-    @Environment(\.modelContext) private var context
+    @EnvironmentObject private var store: KitchenStore
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var category: Category = .dry
-    @State private var quantity = 1
+    @State private var quantity: Int64 = 1
+    @State private var hasBestBefore = false
+    @State private var bestBefore = Calendar.current.date(byAdding: .day, value: 7, to: .now) ?? .now
     @State private var lookingUp = false
     @State private var filledFromDatabase = false
     @FocusState private var nameFocused: Bool
@@ -60,6 +63,13 @@ struct NewItemView: View {
                     Stepper(value: $quantity, in: 1...999) {
                         LabeledContent("How many", value: "\(quantity)")
                     }
+                    Toggle("Best-before date", isOn: $hasBestBefore)
+                        .onChange(of: hasBestBefore) { _, on in
+                            if on { Reminders.requestPermission() }
+                        }
+                    if hasBestBefore {
+                        DatePicker("Best before", selection: $bestBefore, displayedComponents: .date)
+                    }
                 }
 
                 if barcode != nil {
@@ -79,7 +89,7 @@ struct NewItemView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") { save(toList: false) }
+                    Button("Add") { save(toList: startOnList) }
                         .disabled(trimmedName.isEmpty)
                 }
             }
@@ -106,19 +116,20 @@ struct NewItemView: View {
 
     private func save(toList: Bool) {
         guard !trimmedName.isEmpty else { return }
-        let item = Item(
+        store.newItem(
             name: trimmedName,
             barcode: barcode ?? "",
             category: category,
             quantity: toList ? 0 : quantity,
-            onList: toList
+            onList: toList,
+            bestBefore: hasBestBefore && !toList ? bestBefore : nil
         )
-        context.insert(item)
+        store.save()
         dismiss()
     }
 }
 
 #Preview {
     NewItemView(barcode: "5000157024671")
-        .modelContainer(PreviewData.container)
+        .environmentObject(PreviewData.store)
 }

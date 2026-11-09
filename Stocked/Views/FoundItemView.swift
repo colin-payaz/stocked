@@ -1,9 +1,9 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Shown when a scanned barcode is already in the kitchen.
 struct FoundItemView: View {
-    let item: Item
+    @ObservedObject var item: Item
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -14,14 +14,19 @@ struct FoundItemView: View {
                         symbol: item.inStock ? "checkmark" : "exclamationmark",
                         color: item.inStock ? .green : .orange,
                         title: item.inStock ? "You Have \(item.quantity) at Home" : "You've Run Out",
-                        subtitle: "\(item.name) · \(item.category.name)"
+                        subtitle: "\(item.displayName) · \(item.category.name)"
                     )
                     .listRowBackground(Color.clear)
                 } footer: {
-                    if item.onList {
-                        Text("Already on your shopping list.")
-                            .frame(maxWidth: .infinity)
+                    VStack(spacing: 4) {
+                        if let text = item.bestBeforeText, item.inStock {
+                            Text(text)
+                        }
+                        if item.onList {
+                            Text("Already on your shopping list.")
+                        }
                     }
+                    .frame(maxWidth: .infinity)
                 }
 
                 Section {
@@ -42,7 +47,6 @@ struct FoundItemView: View {
 
                     Button {
                         item.onList = true
-                        item.touch()
                         dismiss()
                     } label: {
                         Label("Add to Shopping List", systemImage: "cart.badge.plus")

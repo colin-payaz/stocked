@@ -1,16 +1,23 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ShoppingListView: View {
-    @Environment(\.modelContext) private var context
-    @Query(sort: \Item.name) private var items: [Item]
+    let kitchen: Kitchen
+
+    @EnvironmentObject private var store: KitchenStore
+    @FetchRequest private var items: FetchedResults<Item>
     @State private var newName = ""
-    @State private var ticked: Set<PersistentIdentifier> = []
+    @State private var ticked: Set<NSManagedObjectID> = []
     @State private var tickCount = 0
     @FocusState private var addFieldFocused: Bool
 
+    init(kitchen: Kitchen) {
+        self.kitchen = kitchen
+        _items = FetchRequest(fetchRequest: Item.request(in: kitchen), animation: .default)
+    }
+
     private var onList: [Item] {
-        items.filter(\.onList).sorted { ($0.category.order, $0.name) < ($1.category.order, $1.name) }
+        items.filter(\.onList).sorted { ($0.category.order, $0.displayName) < ($1.category.order, $1.displayName) }
     }
 
     private var runOut: [Item] {
@@ -18,7 +25,7 @@ struct ShoppingListView: View {
     }
 
     private var shareText: String {
-        "Shopping list\n" + onList.map { "• \($0.name)" }.joined(separator: "\n")
+        "Shopping list\n" + onList.map { "• \($0.displayName)" }.joined(separator: "\n")
     }
 
     var body: some View {
@@ -46,12 +53,19 @@ struct ShoppingListView: View {
                         .listRowBackground(Color.clear)
                     }
                 } else {
-                    Section {
-                        ForEach(onList) { item in
-                            listRow(item)
+                    ForEach(Category.allCases) { category in
+                        let rows = onList.filter { $0.category == category }
+                        if !rows.isEmpty {
+                            Section(category.name) {
+                                ForEach(rows) { item in
+                                    listRow(item)
+                                }
+                            }
                         }
+                    }
+                    Section {
                     } footer: {
-                        Text("Ticking something off adds one to your kitchen.")
+                        Text("Ticking something off adds one to your kitchen. At the shop, you can also scan things in Shop mode to tick them off.")
                     }
                 }
 
@@ -60,18 +74,15 @@ struct ShoppingListView: View {
                         ForEach(runOut) { item in
                             HStack(spacing: 12) {
                                 CategoryIcon(category: item.category)
-                                Text(item.name)
+                                Text(item.displayName)
                                 Spacer()
                                 Button {
-                                    withAnimation {
-                                        item.onList = true
-                                        item.touch()
-                                    }
+                                    withAnimation { item.onList = true }
                                 } label: {
                                     Image(systemName: "cart.badge.plus")
                                 }
                                 .buttonStyle(.borderless)
-                                .accessibilityLabel("Add \(item.name) to list")
+                                .accessibilityLabel("Add \(item.displayName) to list")
                             }
                         }
                     }
@@ -92,8 +103,14 @@ struct ShoppingListView: View {
         }
     }
 
+    private func reason(for item: Item) -> String {
+        if item.isLow { return "You have \(item.quantity), keep \(item.minQuantity)" }
+        if item.inStock { return "You have \(item.quantity) at home" }
+        return item.everStocked ? "Run out" : "New"
+    }
+
     private func listRow(_ item: Item) -> some View {
-        let isTicked = ticked.contains(item.persistentModelID)
+        let isTicked = ticked.contains(item.objectID)
         return HStack(spacing: 12) {
             Button {
                 tick(item)
@@ -104,15 +121,15 @@ struct ShoppingListView: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Bought \(item.name)")
+            .accessibilityLabel("Bought \(item.displayName)")
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name)
+                Text(item.displayName)
                     .strikethrough(isTicked)
                     .foregroundStyle(isTicked ? .secondary : .primary)
-                Text(item.inStock ? "You have \(item.quantity) at home" : item.category.name)
+                Text(reason(for: item))
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(item.isLow ? Color.orange : Color.secondary)
             }
         }
         .swipeActions(edge: .trailing) {
@@ -126,7 +143,7 @@ struct ShoppingListView: View {
 
     @MainActor
     private func tick(_ item: Item) {
-        let id = item.persistentModelID
+        let id = item.objectID
         guard !ticked.contains(id) else { return }
         withAnimation { _ = ticked.insert(id) }
         tickCount += 1
@@ -142,10 +159,9 @@ struct ShoppingListView: View {
     private func remove(_ item: Item) {
         if !item.everStocked && !item.inStock {
             // Typed straight onto the list and never bought: nothing to keep.
-            context.delete(item)
+            store.delete(item)
         } else {
             item.onList = false
-            item.touch()
         }
     }
 
@@ -154,9 +170,8 @@ struct ShoppingListView: View {
         guard !name.isEmpty else { return }
         if let existing = items.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
             existing.onList = true
-            existing.touch()
         } else {
-            context.insert(Item(name: name, category: .other, quantity: 0, onList: true))
+            store.newItem(name: name, category: .other, quantity: 0, onList: true)
         }
         newName = ""
         addFieldFocused = true
@@ -164,6 +179,7 @@ struct ShoppingListView: View {
 }
 
 #Preview {
-    ShoppingListView()
-        .modelContainer(PreviewData.container)
+    ShoppingListView(kitchen: PreviewData.kitchen)
+        .environmentObject(PreviewData.store)
+        .environment(\.managedObjectContext, PreviewData.store.context)
 }
