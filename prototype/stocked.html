@@ -1,0 +1,747 @@
+<title>Stocked</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: iOS-style single-screen app. Large-title header, inset grouped lists, bottom tab bar, bottom sheets. */
+:root{
+  --tint:#1F9D55; --tint-soft:rgba(31,157,85,.12);
+  --bg:#F2F2F7; --cell:#FFFFFF; --cell-press:#E5E5EA;
+  --label:#000000; --label2:rgba(60,60,67,.62); --label3:rgba(60,60,67,.32);
+  --sep:rgba(60,60,67,.18); --fill:rgba(118,118,128,.12);
+  --red:#FF3B30; --orange:#FF9500; --blue:#007AFF;
+  --bar:rgba(249,249,249,.86); --sheet:#F2F2F7; --scrim:rgba(0,0,0,.32);
+  --c-herbs:#34C759; --c-dry:#FF9F0A; --c-tinned:#8E8E93; --c-fridge:#0A84FF; --c-freezer:#5AC8FA; --c-other:#AF52DE;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+  --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --tint:#30D158; --tint-soft:rgba(48,209,88,.16);
+  --bg:#000000; --cell:#1C1C1E; --cell-press:#2C2C2E;
+  --label:#FFFFFF; --label2:rgba(235,235,245,.62); --label3:rgba(235,235,245,.3);
+  --sep:rgba(84,84,88,.6); --fill:rgba(118,118,128,.24);
+  --red:#FF453A; --orange:#FF9F0A; --blue:#0A84FF;
+  --bar:rgba(22,22,24,.86); --sheet:#1C1C1E; --scrim:rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --tint:#30D158; --tint-soft:rgba(48,209,88,.16);
+  --bg:#000000; --cell:#1C1C1E; --cell-press:#2C2C2E;
+  --label:#FFFFFF; --label2:rgba(235,235,245,.62); --label3:rgba(235,235,245,.3);
+  --sep:rgba(84,84,88,.6); --fill:rgba(118,118,128,.24);
+  --red:#FF453A; --orange:#FF9F0A; --blue:#0A84FF;
+  --bar:rgba(22,22,24,.86); --sheet:#1C1C1E; --scrim:rgba(0,0,0,.5); color-scheme:dark}
+:root[data-theme="dark"] .sheet .group, :root[data-theme="dark"] .sheet .cellish{background:#2C2C2E}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sheet .group,:root:not([data-theme="light"]) .sheet .cellish{background:#2C2C2E}}
+
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--bg);color:var(--label);font:17px/1.29 var(--font);letter-spacing:-.41px;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--tint);outline-offset:2px}
+
+.app{height:100%;display:flex;flex-direction:column}
+.views{flex:1;min-height:0;position:relative}
+.view{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:8px 32px}
+.inner{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+
+/* Large title */
+.nav{display:flex;flex-direction:column;gap:10px;padding-top:6px}
+.nav-top{display:flex;justify-content:flex-end;min-height:30px;align-items:center;gap:18px}
+.nav-btn{color:var(--tint);font-size:17px;display:inline-flex;align-items:center;gap:4px}
+.nav-btn svg{width:22px;height:22px}
+h1{font:700 34px/1.2 var(--font-display);letter-spacing:.37px;margin:0;text-wrap:balance}
+.subtitle{color:var(--label2);font-size:15px;margin-top:-6px}
+
+.search{display:flex;align-items:center;gap:6px;background:var(--fill);border-radius:10px;padding:0 8px;height:36px}
+.search svg{width:16px;height:16px;flex:none;color:var(--label2)}
+.search input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:17px;padding:0}
+.search input::placeholder{color:var(--label2)}
+
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:0 max(16px,env(safe-area-inset-left,0px))}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:32px;padding:0 14px;border-radius:16px;background:var(--cell);font-size:15px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--tint);color:#fff}
+.chip .n{color:var(--label2);font-variant-numeric:tabular-nums;font-weight:400}
+.chip[aria-pressed="true"] .n{color:rgba(255,255,255,.8)}
+
+/* Inset grouped list */
+.section{display:flex;flex-direction:column;gap:7px}
+.section-h{font-size:13px;text-transform:uppercase;letter-spacing:.06px;color:var(--label2);padding:0 16px;display:flex;justify-content:space-between}
+.section-f{font-size:13px;color:var(--label2);padding:0 16px;letter-spacing:-.08px}
+.group{background:var(--cell);border-radius:10px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 16px;width:100%;text-align:left;position:relative}
+.row + .row::before{content:"";position:absolute;top:0;right:0;left:var(--inset,16px);border-top:.5px solid var(--sep)}
+button.row:active{background:var(--cell-press)}
+.row .main{flex:1;min-width:0;padding:11px 0;display:flex;flex-direction:column;gap:1px}
+.row .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .meta{font-size:13px;color:var(--label2);letter-spacing:-.08px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .chev{width:8px;height:13px;color:var(--label3);flex:none}
+.ico{width:29px;height:29px;border-radius:7px;display:grid;place-items:center;flex:none;color:#fff}
+.ico svg{width:19px;height:19px}
+.has-ico{--inset:57px}
+.qty{font-variant-numeric:tabular-nums;color:var(--label2);font-size:17px;flex:none}
+.pill{font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;flex:none;letter-spacing:0}
+.pill.out{background:rgba(255,59,48,.14);color:var(--red)}
+.pill.list{background:var(--tint-soft);color:var(--tint)}
+
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 24px;color:var(--label2)}
+.empty svg{width:56px;height:56px;color:var(--label3)}
+.empty strong{color:var(--label);font-size:20px;font-weight:600}
+.empty p{margin:0;max-width:30ch;font-size:15px}
+
+/* Buttons */
+.btn{height:50px;border-radius:12px;font-weight:600;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:0 16px}
+.btn svg{width:20px;height:20px}
+.btn.primary{background:var(--tint);color:#fff}
+.btn.primary:active{filter:brightness(.92)}
+.btn.tinted{background:var(--tint-soft);color:var(--tint)}
+.btn.plain{color:var(--tint);height:44px}
+.btn.danger{color:var(--red);background:var(--cell)}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Scan hero */
+.scan-hero{background:var(--cell);border-radius:16px;padding:28px 20px 20px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.viewfinder{width:min(240px,70%);aspect-ratio:1.5;max-width:100%;position:relative;display:grid;place-items:center;color:var(--label)}
+.viewfinder::before,.viewfinder::after{content:"";position:absolute;inset:0;border:3px solid var(--tint);border-radius:14px;
+  -webkit-mask:linear-gradient(#000 0 0) top left/26px 26px no-repeat,linear-gradient(#000 0 0) top right/26px 26px no-repeat,linear-gradient(#000 0 0) bottom left/26px 26px no-repeat,linear-gradient(#000 0 0) bottom right/26px 26px no-repeat;
+          mask:linear-gradient(#000 0 0) top left/26px 26px no-repeat,linear-gradient(#000 0 0) top right/26px 26px no-repeat,linear-gradient(#000 0 0) bottom left/26px 26px no-repeat,linear-gradient(#000 0 0) bottom right/26px 26px no-repeat}
+.viewfinder::after{display:none}
+.bars{display:flex;gap:3px;height:56%;align-items:stretch}
+.bars i{display:block;background:currentColor;border-radius:1px}
+.laser{position:absolute;left:10%;right:10%;height:2px;background:var(--red);border-radius:2px;box-shadow:0 0 8px var(--red);top:50%;animation:sweep 2.4s ease-in-out infinite}
+@keyframes sweep{0%,100%{transform:translateY(-34px)}50%{transform:translateY(34px)}}
+@media (prefers-reduced-motion:reduce){.laser{animation:none}}
+.scan-hero h2{font:600 22px/1.2 var(--font-display);margin:0;letter-spacing:.35px}
+.scan-hero p{margin:-8px 0 0;color:var(--label2);font-size:15px;max-width:32ch}
+.file-label{position:relative;overflow:hidden}
+.file-label input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.field-row{display:flex;gap:8px;align-items:center;padding:6px 6px 6px 16px}
+.field-row input{flex:1;min-width:0;border:0;background:none;outline:none;height:32px;font-size:17px}
+.field-row input::placeholder{color:var(--label3)}
+.small-btn{height:32px;padding:0 14px;border-radius:16px;background:var(--tint-soft);color:var(--tint);font-weight:600;font-size:15px;flex:none}
+.small-btn[disabled]{opacity:.4}
+
+/* Shopping list */
+.check{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--label3);flex:none;display:grid;place-items:center;transition:background .15s,border-color .15s}
+.check svg{width:14px;height:14px;color:#fff;opacity:0}
+.row.done .check{background:var(--tint);border-color:var(--tint)}
+.row.done .check svg{opacity:1}
+.row.done .title{color:var(--label2);text-decoration:line-through}
+.add-btn{width:30px;height:30px;border-radius:50%;background:var(--tint-soft);color:var(--tint);display:grid;place-items:center;flex:none}
+.add-btn svg{width:16px;height:16px}
+
+/* Tab bar */
+.tabbar{flex:none;display:flex;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep);
+  padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));padding-bottom:env(safe-area-inset-bottom,0px)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 5px;color:var(--label2);font-size:10px;font-weight:500;letter-spacing:.1px;position:relative}
+.tab svg{width:26px;height:26px}
+.tab[aria-selected="true"]{color:var(--tint)}
+.badge{position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:12px;font-weight:600;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+
+/* Sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim);opacity:0;transition:opacity .28s;z-index:40}
+.scrim.on{opacity:1}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--sheet);border-radius:12px 12px 0 0;max-height:calc(100% - 44px - env(safe-area-inset-top,0px));display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform .34s cubic-bezier(.32,.72,0,1);box-shadow:0 -1px 0 var(--sep)}
+.sheet.on{transform:none}
+@media (min-width:720px){.sheet{left:50%;width:560px;margin-left:-280px}}
+@media (prefers-reduced-motion:reduce){.sheet,.scrim{transition:none}}
+.grabber{width:36px;height:5px;border-radius:3px;background:var(--label3);margin:6px auto 0;flex:none}
+.sheet-nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-height:44px;padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));flex:none}
+.sheet-nav .l{justify-self:start;color:var(--tint)}
+.sheet-nav .r{justify-self:end;color:var(--tint);font-weight:600}
+.sheet-nav .r[disabled]{opacity:.35}
+.sheet-nav .t{font-weight:600}
+.sheet-body{overflow-y:auto;padding:8px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:22px}
+
+.status{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:4px 0 2px}
+.status .big{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:#fff;margin-bottom:6px}
+.status .big svg{width:34px;height:34px}
+.status .big.yes{background:var(--tint)}
+.status .big.no{background:var(--orange)}
+.status h3{margin:0;font:600 22px/1.2 var(--font-display);letter-spacing:.35px;text-wrap:balance}
+.status p{margin:0;color:var(--label2);font-size:15px}
+.code{font-family:var(--mono);font-size:13px;color:var(--label2);letter-spacing:.5px}
+
+.text-input{width:100%;border:0;background:none;outline:none;height:44px;font-size:17px;padding:0}
+.text-input::placeholder{color:var(--label3)}
+.cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cat{background:var(--cell);border-radius:12px;padding:12px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;font-size:13px;font-weight:500;border:2px solid transparent;text-align:center;line-height:1.15}
+.cat[aria-checked="true"]{border-color:var(--tint)}
+.stepper{display:flex;align-items:center;background:var(--fill);border-radius:9px;height:32px;flex:none}
+.stepper button{width:46px;height:32px;display:grid;place-items:center;color:var(--label)}
+.stepper button svg{width:15px;height:15px}
+.stepper button[disabled]{opacity:.3}
+.stepper span{min-width:28px;text-align:center;font-variant-numeric:tabular-nums;font-weight:600;border-left:.5px solid var(--sep);border-right:.5px solid var(--sep);line-height:20px}
+.switch{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--fill);position:relative;flex:none;cursor:pointer;transition:background .2s;margin:0}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15),0 1px 1px rgba(0,0,0,.16);transition:transform .2s}
+.switch:checked{background:var(--tint)}
+.switch:checked::after{transform:translateX(20px)}
+.hint{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--label2);padding:0 16px}
+.hint svg{width:14px;height:14px;color:var(--tint);flex:none}
+.spin{width:16px;height:16px;border:2px solid var(--label3);border-top-color:var(--tint);border-radius:50%;animation:rot .8s linear infinite;flex:none}
+@keyframes rot{to{transform:rotate(360deg)}}
+.confirm{display:flex;flex-direction:column;gap:10px}
+
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:60;background:rgba(30,30,32,.94);color:#fff;font-size:15px;font-weight:500;padding:10px 16px;border-radius:22px;display:flex;align-items:center;gap:8px;transition:opacity .2s,transform .25s;pointer-events:none;width:max-content;max-width:calc(100% - 32px)}
+.toast svg{width:18px;height:18px;color:#30D158;flex:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.banner{font-size:13px;color:var(--label2);text-align:center;padding:0 16px}
+</style>
+
+<div class="app">
+  <div class="views">
+    <!-- KITCHEN -->
+    <section class="view" id="view-kitchen" role="tabpanel">
+      <div class="inner">
+        <div class="nav">
+          <div class="nav-top">
+            <button class="nav-btn" id="kitchen-add" aria-label="Add item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          </div>
+          <h1>Kitchen</h1>
+          <div class="subtitle" id="kitchen-sub">Loading your kitchen…</div>
+          <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg><input id="kitchen-search" type="search" placeholder="Search your kitchen" autocomplete="off"></label>
+          <div class="chips" id="chips" role="toolbar" aria-label="Filter by category"></div>
+        </div>
+        <div id="kitchen-list" class="inner" style="gap:22px"></div>
+      </div>
+    </section>
+
+    <!-- SCAN -->
+    <section class="view" id="view-scan" role="tabpanel" hidden>
+      <div class="inner">
+        <div class="nav"><div class="nav-top"></div><h1>Scan</h1></div>
+        <div class="scan-hero">
+          <div class="viewfinder" aria-hidden="true"><div class="bars" id="bars"></div><div class="laser"></div></div>
+          <h2>Do I have this?</h2>
+          <p>Take a photo of a barcode. You'll see straight away if it's in your kitchen.</p>
+          <label class="btn primary file-label" id="scan-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M8 9v6M11 9v6M14 9v6M17 9v6"/></svg>
+            <span id="scan-label-text">Scan Barcode</span>
+            <input id="scan-input" type="file" accept="image/*" capture="environment" aria-label="Scan barcode with camera">
+          </label>
+        </div>
+        <div class="section">
+          <div class="section-h">Or type the number</div>
+          <div class="group"><div class="field-row">
+            <input id="manual-code" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 5000157024671" autocomplete="off">
+            <button class="small-btn" id="manual-go" disabled>Look Up</button>
+          </div></div>
+          <div class="section-f">The digits printed under the barcode.</div>
+        </div>
+        <div class="section">
+          <div class="group">
+            <button class="row" id="scan-nobarcode"><span class="main"><span class="title" style="color:var(--tint)">Add Item Without a Barcode</span></span></button>
+          </div>
+          <div class="section-f">For loose fruit and veg, jars you've refilled, or homemade food.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIST -->
+    <section class="view" id="view-list" role="tabpanel" hidden>
+      <div class="inner">
+        <div class="nav">
+          <div class="nav-top"><button class="nav-btn" id="list-copy">Copy List</button></div>
+          <h1>Shopping List</h1>
+          <div class="subtitle" id="list-sub"></div>
+        </div>
+        <div class="group"><div class="field-row">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="color:var(--tint);flex:none;margin-left:-4px"><path d="M12 5v14M5 12h14"/></svg>
+          <input id="list-new" placeholder="Add to list" autocomplete="off" enterkeyhint="done">
+          <button class="small-btn" id="list-new-go" disabled>Add</button>
+        </div></div>
+        <div id="list-body" class="inner" style="gap:22px"></div>
+      </div>
+    </section>
+  </div>
+
+  <nav class="tabbar" role="tablist">
+    <button class="tab" role="tab" data-tab="kitchen" aria-selected="true">
+      <svg viewBox="0 0 28 28" fill="currentColor"><path d="M14 3.2 2.9 12.4a1 1 0 0 0 1.3 1.5l1.3-1.1V23a2 2 0 0 0 2 2h4.5v-6.5h4V25h4.5a2 2 0 0 0 2-2V12.8l1.3 1.1a1 1 0 0 0 1.3-1.5Z"/></svg>Kitchen</button>
+    <button class="tab" role="tab" data-tab="scan" aria-selected="false">
+      <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M4 9V7a3 3 0 0 1 3-3h2M19 4h2a3 3 0 0 1 3 3v2M24 19v2a3 3 0 0 1-3 3h-2M9 24H7a3 3 0 0 1-3-3v-2M9 10v8M12.5 10v8M16 10v8M19 10v8"/></svg>Scan</button>
+    <button class="tab" role="tab" data-tab="list" aria-selected="false">
+      <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 7.5h12M11 14h12M11 20.5h12"/><path d="m4 7.5 1.5 1.5L8 6" /><circle cx="6" cy="14" r="1.6" fill="currentColor" stroke="none"/><circle cx="6" cy="20.5" r="1.6" fill="currentColor" stroke="none"/></svg>Shopping List<span class="badge" id="list-badge" hidden></span></button>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden>
+  <div class="grabber"></div>
+  <div class="sheet-nav"><button class="l" id="sheet-l">Cancel</button><div class="t" id="sheet-t"></div><button class="r" id="sheet-r"></button></div>
+  <div class="sheet-body" id="sheet-body"></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span id="toast-t"></span></div>
+
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- Categories ---------- */
+const CATS = [
+  {id:'herbs',  name:'Herbs & Spices', color:'var(--c-herbs)',  svg:'<path d="M5 19C5 11 11 5 19 5c0 8-6 14-14 14Z"/><path d="M5 19 13 11"/>'},
+  {id:'dry',    name:'Dry',            color:'var(--c-dry)',    svg:'<rect x="6" y="8.5" width="12" height="12" rx="2.5"/><path d="M8 4.5h8v4H8z"/><path d="M9 13h6"/>'},
+  {id:'tinned', name:'Tinned',         color:'var(--c-tinned)', svg:'<ellipse cx="12" cy="6" rx="6" ry="2.4"/><path d="M6 6v12c0 1.3 2.7 2.4 6 2.4s6-1.1 6-2.4V6M6 10.5c0 1.3 2.7 2.4 6 2.4s6-1.1 6-2.4"/>'},
+  {id:'fridge', name:'Fridge',         color:'var(--c-fridge)', svg:'<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M6 10h12M9 6.2v1.6M9 13v3"/>'},
+  {id:'freezer',name:'Freezer',        color:'var(--c-freezer)',svg:'<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5"/>'},
+  {id:'other',  name:'Other',          color:'var(--c-other)',  svg:'<path d="M5 8.5h14l-1.2 11.5H6.2Z"/><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"/>'},
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+const icon = (id, size) => { const c = CAT[id] || CAT.other; return `<span class="ico" style="background:${c.color}${size?`;width:${size}px;height:${size}px;border-radius:${Math.round(size*.24)}px`:''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${c.svg}</svg></span>`; };
+const SVG = {
+  chev:'<svg class="chev" viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m1.5 1.5 5 5-5 5"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  minus:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h10"/></svg>',
+  plus:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>',
+  q:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>',
+  sparkle:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5c.5 4.6 2.9 7 7.5 7.5-4.6.5-7 2.9-7.5 7.5-.5-4.6-2.9-7-7.5-7.5 4.6-.5 7-2.9 7.5-7.5Z"/></svg>',
+};
+
+/* ---------- Store: shared db (syncs across devices), else this device ---------- */
+const items = new Map();     // id -> item
+let store = null;            // {save(item), remove(id)}
+let loaded = false;
+
+const LS_KEY = 'stocked.items.v1';
+function localStore(){
+  try { const raw = localStorage.getItem(LS_KEY); if (raw) for (const it of JSON.parse(raw)) items.set(it.id, it); } catch {}
+  const flush = () => { try { localStorage.setItem(LS_KEY, JSON.stringify([...items.values()])); } catch {} };
+  return { local:true, async save(it){ items.set(it.id, it); flush(); render(); }, async remove(id){ items.delete(id); flush(); render(); } };
+}
+function dbStore(db){
+  const col = db.collection('items');
+  const writing = new Map(); // id -> promise chain (one write at a time per doc)
+  const queue = (id, fn) => { const p = (writing.get(id) || Promise.resolve()).then(fn, fn); writing.set(id, p.catch(()=>{})); return p; };
+  return {
+    local:false,
+    async save(it){ items.set(it.id, it); render(); const {id, ...body} = it; return queue(id, () => col.doc(id).set(body)).catch(e => toast(e?.code === 'quota_exceeded' ? 'Your kitchen is full. Delete a few items.' : 'Couldn’t save. Check your connection.', true)); },
+    async remove(id){ items.delete(id); render(); return queue(id, () => col.doc(id).delete()).catch(() => toast('Couldn’t delete. Check your connection.', true)); },
+    subscribe(){
+      const timer = setTimeout(() => { if (!loaded) { $('#kitchen-sub').textContent = 'Can’t reach your kitchen yet. Retrying…'; } }, 10000);
+      col.onSnapshot(snap => {
+        items.clear();
+        for (const d of snap.docs) items.set(d.id, {id:d.id, ...d.data()});
+        if (!snap.metadata.fromCache) { loaded = true; clearTimeout(timer); }
+        else if (!loaded && snap.size) loaded = true;
+        render();
+      }, () => { clearTimeout(timer); loaded = true; $('#kitchen-sub').textContent = 'Your kitchen couldn’t be loaded. Reopen the page to try again.'; });
+    }
+  };
+}
+
+let sample = null, sampleImages = false;
+async function boot(){
+  render();
+  let db = null;
+  try { db = window.claude?.use ? await window.claude.use('db') : null; } catch {}
+  if (db) { store = dbStore(db); store.subscribe(); }
+  else { store = localStore(); loaded = true; render(); }
+  try {
+    sample = window.claude?.use ? await window.claude.use('sample') : null;
+    if (sample) { const lim = await sample.limits().catch(() => null); sampleImages = !!lim?.images; }
+  } catch { sample = null; }
+}
+
+/* ---------- Helpers ---------- */
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/[^a-zA-Z0-9-]/g,'');
+const now = () => new Date().toISOString();
+const byBarcode = code => [...items.values()].find(i => i.barcode && i.barcode === code);
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+function ago(iso){
+  if (!iso) return '';
+  const d = (Date.now() - new Date(iso)) / 86400000;
+  if (d < 1) return 'today'; if (d < 2) return 'yesterday'; if (d < 14) return `${Math.floor(d)} days ago`;
+  return new Date(iso).toLocaleDateString(undefined, {day:'numeric', month:'short'});
+}
+function validEAN(code){
+  if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false;
+  const d = code.split('').map(Number), check = d.pop();
+  const sum = d.reverse().reduce((s, n, i) => s + n * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - sum % 10) % 10 === check;
+}
+let toastTimer;
+function toast(msg, warn){
+  $('#toast-t').textContent = msg;
+  $('#toast svg').style.display = warn ? 'none' : '';
+  $('#toast').classList.add('on'); clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('#toast').classList.remove('on'), 2200);
+}
+async function saveItem(it){ it.updatedAt = now(); await store?.save(it); }
+
+/* ---------- Tabs ---------- */
+let tab = 'kitchen';
+function showTab(t){
+  tab = t;
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
+  for (const v of ['kitchen','scan','list']) $('#view-' + v).hidden = v !== t;
+  try { localStorage.setItem('stocked.tab', t); } catch {}
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+try { const t = localStorage.getItem('stocked.tab'); if (t && ['kitchen','scan','list'].includes(t)) showTab(t); } catch {}
+
+/* ---------- Kitchen view ---------- */
+let filter = 'all', query = '';
+const inKitchenPred = i => (i.qty || 0) > 0 || !i.onList || i.everStocked;
+$('#kitchen-search').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); renderKitchen(); });
+$('#kitchen-add').addEventListener('click', () => openNewItem({}));
+
+function renderChips(){
+  const all = [...items.values()].filter(inKitchenPred);
+  const counts = {}; for (const i of all) counts[i.category] = (counts[i.category] || 0) + 1;
+  const chip = (id, name, n) => `<button class="chip" data-f="${id}" aria-pressed="${filter === id}">${esc(name)}${n != null ? ` <span class="n">${n}</span>` : ''}</button>`;
+  $('#chips').innerHTML = chip('all', 'All', all.length) + CATS.map(c => chip(c.id, c.name, counts[c.id] || 0)).join('');
+  $('#chips').querySelectorAll('.chip').forEach(b => b.onclick = () => { filter = b.dataset.f; renderKitchen(); });
+}
+function renderKitchen(){
+  renderChips();
+  // Kitchen shows things you have, plus things you've run out of. List-only items you never had are hidden.
+  const inKitchen = [...items.values()].filter(inKitchenPred);
+  const total = inKitchen.filter(i => i.qty > 0).length, out = inKitchen.filter(i => !(i.qty > 0)).length;
+  $('#kitchen-sub').textContent = !loaded ? 'Loading your kitchen…' : inKitchen.length ? `${plural(total, 'item')} in stock${out ? ` · ${out} run out` : ''}` + (store?.local ? ' · saved on this device' : '') : '';
+  let list = inKitchen;
+  if (filter !== 'all') list = list.filter(i => i.category === filter);
+  if (query) list = list.filter(i => (i.name || '').toLowerCase().includes(query) || (i.barcode || '').includes(query));
+  const box = $('#kitchen-list');
+  if (!loaded) { box.innerHTML = ''; return; }
+  if (!inKitchen.length) {
+    box.innerHTML = `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M8 9v6M11 9v6M14 9v6M17 9v6"/></svg><strong>Your kitchen is empty</strong><p>Scan the barcode on a tin, jar or packet to add it. Start with the cupboard you use most.</p><button class="btn primary" style="width:auto;margin-top:8px;padding:0 22px" id="empty-scan">Scan Your First Item</button></div>`;
+    $('#empty-scan').onclick = () => { showTab('scan'); $('#scan-input').click(); };
+    return;
+  }
+  if (!list.length) { box.innerHTML = `<div class="empty"><strong>No results</strong><p>${query ? `Nothing matches “${esc(query)}”.` : 'Nothing in this category yet.'}</p></div>`; return; }
+  const cats = filter === 'all' ? CATS : [CAT[filter]];
+  box.innerHTML = cats.map(c => {
+    const rows = list.filter(i => (CAT[i.category] ? i.category : 'other') === c.id).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    if (!rows.length) return '';
+    return `<div class="section"><div class="section-h"><span>${esc(c.name)}</span><span>${rows.length}</span></div><div class="group">${rows.map(itemRow).join('')}</div></div>`;
+  }).join('');
+  box.querySelectorAll('[data-id]').forEach(b => b.onclick = () => openItem(b.dataset.id));
+}
+function itemRow(i){
+  const q = i.qty || 0;
+  const right = q > 0 ? `<span class="qty">${q}</span>` : `<span class="pill out">Run out</span>`;
+  const meta = [i.onList ? 'On shopping list' : '', `Updated ${ago(i.updatedAt)}`].filter(Boolean).join(' · ');
+  return `<button class="row has-ico" data-id="${esc(i.id)}">${icon(i.category)}<span class="main"><span class="title">${esc(i.name || 'Unnamed item')}</span><span class="meta">${esc(meta)}</span></span>${right}${SVG.chev}</button>`;
+}
+
+/* ---------- Shopping list view ---------- */
+const newInput = $('#list-new');
+newInput.addEventListener('input', () => $('#list-new-go').disabled = !newInput.value.trim());
+const addToListFromField = async () => {
+  const name = newInput.value.trim(); if (!name) return;
+  const existing = [...items.values()].find(i => (i.name || '').toLowerCase() === name.toLowerCase());
+  if (existing) { existing.onList = true; await saveItem(existing); toast(existing.qty > 0 ? `Added. You have ${existing.qty} at home` : 'Added to list'); }
+  else await saveItem({id:uid(), name, category:'other', qty:0, onList:true, barcode:'', createdAt:now()});
+  newInput.value = ''; $('#list-new-go').disabled = true;
+};
+$('#list-new-go').addEventListener('click', addToListFromField);
+newInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addToListFromField(); } });
+$('#list-copy').addEventListener('click', () => {
+  const lines = [...items.values()].filter(i => i.onList).sort(sortByCat).map(i => `- ${i.name}`);
+  if (!lines.length) { toast('Your list is empty', true); return; }
+  const text = 'Shopping list\n' + lines.join('\n');
+  navigator.clipboard?.writeText(text).then(() => toast('List copied'), () => toast('Copy isn’t available here', true));
+});
+const sortByCat = (a, b) => CATS.findIndex(c => c.id === a.category) - CATS.findIndex(c => c.id === b.category) || (a.name || '').localeCompare(b.name || '');
+const ticking = new Set();
+function renderList(){
+  const onList = [...items.values()].filter(i => i.onList).sort(sortByCat);
+  const runOut = [...items.values()].filter(i => !i.onList && !(i.qty > 0)).sort(sortByCat);
+  const badge = $('#list-badge'); badge.hidden = !onList.length; badge.textContent = onList.length;
+  $('#list-sub').textContent = onList.length ? `${plural(onList.length, 'thing')} to buy · tick them off as you shop` : '';
+  const box = $('#list-body');
+  let html = '';
+  if (onList.length) {
+    html += `<div class="section"><div class="group">${onList.map(i => {
+      const meta = i.qty > 0 ? `You have ${i.qty} at home` : (CAT[i.category]?.name || 'Other');
+      return `<div class="row has-ico ${ticking.has(i.id) ? 'done' : ''}" style="--inset:52px"><button class="check" data-tick="${esc(i.id)}" aria-label="Bought ${esc(i.name)}">${SVG.check}</button><button class="main" data-open="${esc(i.id)}" style="text-align:left"><span class="title">${esc(i.name)}</span><span class="meta">${esc(meta)}</span></button></div>`;
+    }).join('')}</div><div class="section-f">Ticking something off adds one to your kitchen.</div></div>`;
+  } else if (loaded) {
+    html += `<div class="empty" style="padding-block:28px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.2 1.2L7 5"/><path d="m3.5 12 1.2 1.2L7 11"/><path d="m3.5 18 1.2 1.2L7 17"/></svg><strong>Nothing to buy</strong><p>Type above to add something. When you use the last of an item, it lands here on its own.</p></div>`;
+  }
+  if (runOut.length) {
+    html += `<div class="section"><div class="section-h"><span>Run out</span></div><div class="group">${runOut.map(i =>
+      `<div class="row has-ico">${icon(i.category)}<span class="main"><span class="title">${esc(i.name)}</span><span class="meta">Ran out ${esc(ago(i.updatedAt))}</span></span><button class="add-btn" data-add="${esc(i.id)}" aria-label="Add ${esc(i.name)} to list">${SVG.plus.replace('viewBox','stroke-width="2.4" viewBox')}</button></div>`).join('')}</div></div>`;
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('[data-tick]').forEach(b => b.onclick = () => tickOff(b.dataset.tick));
+  box.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openItem(b.dataset.open));
+  box.querySelectorAll('[data-add]').forEach(b => b.onclick = async () => { const it = items.get(b.dataset.add); if (it) { it.onList = true; await saveItem(it); toast('Added to list'); } });
+}
+function tickOff(id){
+  const it = items.get(id); if (!it || ticking.has(id)) return;
+  ticking.add(id); renderList();
+  setTimeout(async () => {
+    ticking.delete(id);
+    const cur = items.get(id); if (!cur) return;
+    cur.onList = false; cur.qty = (cur.qty || 0) + 1; cur.everStocked = true;
+    await saveItem(cur);
+    toast(`${cur.name} is now in your kitchen`);
+  }, 450);
+}
+
+function render(){ renderKitchen(); renderList(); }
+
+/* ---------- Sheet ---------- */
+const sheet = $('#sheet'), scrim = $('#scrim');
+let sheetClose = null;
+function openSheet({title, left = 'Cancel', right = '', onRight, body, onClose}){
+  $('#sheet-t').textContent = title || '';
+  $('#sheet-l').textContent = left;
+  const r = $('#sheet-r'); r.textContent = right; r.hidden = !right; r.disabled = false; r.onclick = onRight || null;
+  const b = $('#sheet-body'); b.innerHTML = ''; b.scrollTop = 0;
+  if (typeof body === 'string') b.innerHTML = body; else if (body) b.append(body);
+  sheet.hidden = scrim.hidden = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => { sheet.classList.add('on'); scrim.classList.add('on'); }));
+  sheetClose = onClose || null;
+  return b;
+}
+function closeSheet(){
+  sheet.classList.remove('on'); scrim.classList.remove('on');
+  setTimeout(() => { if (!sheet.classList.contains('on')) { sheet.hidden = scrim.hidden = true; $('#sheet-body').innerHTML = ''; } }, 360);
+  const f = sheetClose; sheetClose = null; f && f();
+}
+$('#sheet-l').addEventListener('click', closeSheet);
+scrim.addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hidden) closeSheet(); });
+// Swipe the grabber area down to dismiss
+(() => { let y0 = null; const zone = sheet;
+  zone.addEventListener('touchstart', e => { if ($('#sheet-body').scrollTop <= 0 && e.target.closest('.grabber,.sheet-nav,.sheet-body')) y0 = e.touches[0].clientY; }, {passive:true});
+  zone.addEventListener('touchmove', e => { if (y0 == null) return; const dy = e.touches[0].clientY - y0; if (dy > 0 && $('#sheet-body').scrollTop <= 0) { sheet.style.transition = 'none'; sheet.style.transform = `translateY(${dy}px)`; } }, {passive:true});
+  zone.addEventListener('touchend', e => { if (y0 == null) return; const dy = e.changedTouches[0].clientY - y0; y0 = null; sheet.style.transition = ''; sheet.style.transform = ''; if (dy > 110) closeSheet(); });
+})();
+
+/* Reusable form pieces */
+function catPicker(sel, onPick){
+  const wrap = document.createElement('div');
+  wrap.className = 'section';
+  wrap.innerHTML = `<div class="section-h">Where does it live?</div><div class="cats" role="radiogroup" aria-label="Category">${CATS.map(c => `<button class="cat" role="radio" data-c="${c.id}" aria-checked="${sel === c.id}">${icon(c.id, 34)}${esc(c.name)}</button>`).join('')}</div>`;
+  const set = id => { sel = id; wrap.querySelectorAll('.cat').forEach(b => b.setAttribute('aria-checked', b.dataset.c === id)); };
+  wrap.querySelectorAll('.cat').forEach(b => b.onclick = () => { set(b.dataset.c); onPick(b.dataset.c); });
+  wrap.set = set;
+  return wrap;
+}
+function stepper(val, min, onChange){
+  const s = document.createElement('div'); s.className = 'stepper';
+  s.innerHTML = `<button aria-label="One less">${SVG.minus}</button><span aria-live="polite">${val}</span><button aria-label="One more">${SVG.plus}</button>`;
+  const [dec, , inc] = s.children, out = s.children[1];
+  const upd = () => { out.textContent = val; dec.disabled = val <= min; };
+  dec.onclick = () => { if (val > min) { val--; upd(); onChange(val); } };
+  inc.onclick = () => { val++; upd(); onChange(val); };
+  upd(); return s;
+}
+function el(html){ const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
+
+/* ---------- Item detail ---------- */
+function openItem(id){
+  const it = items.get(id); if (!it) return;
+  const draft = {...it};
+  const body = document.createElement('div'); body.style.cssText = 'display:flex;flex-direction:column;gap:22px';
+  const head = el(`<div class="status">${icon(draft.category, 64).replace('class="ico"', 'class="ico" id="d-ico"')}<h3 style="margin-top:8px">${esc(draft.name)}</h3><p>${draft.qty > 0 ? `You have ${draft.qty} in ${esc(CAT[draft.category]?.name || 'Other')}` : 'You’ve run out'}</p>${draft.barcode ? `<div class="code">${esc(draft.barcode)}</div>` : ''}</div>`);
+  body.append(head);
+
+  const g = el(`<div class="section"><div class="group"></div></div>`);
+  const grp = g.firstChild;
+  const nameRow = el(`<div class="row"><span class="main" style="padding:0"><input class="text-input" id="d-name" aria-label="Name" placeholder="Name"></span></div>`);
+  nameRow.querySelector('input').value = draft.name || '';
+  nameRow.querySelector('input').oninput = e => { draft.name = e.target.value; $('#sheet-r').disabled = !draft.name.trim(); };
+  const qtyRow = el(`<div class="row"><span class="main"><span class="title">How many at home</span></span></div>`);
+  qtyRow.append(stepper(draft.qty || 0, 0, v => draft.qty = v));
+  const listRow = el(`<label class="row"><span class="main"><span class="title">On shopping list</span></span><input type="checkbox" class="switch" id="d-list"></label>`);
+  listRow.querySelector('input').checked = !!draft.onList;
+  listRow.querySelector('input').onchange = e => draft.onList = e.target.checked;
+  grp.append(nameRow, qtyRow, listRow);
+  body.append(g);
+  body.append(catPicker(draft.category, c => { draft.category = c; }));
+
+  const quick = el(`<div class="btn-row"><button class="btn tinted" id="d-use">Used One</button><button class="btn tinted" id="d-add">Bought One</button></div>`);
+  body.append(quick);
+  const del = el(`<div class="confirm"><button class="btn danger" id="d-del">Delete Item</button></div>`);
+  body.append(del);
+
+  const commit = async () => { if (!draft.name.trim()) return; draft.name = draft.name.trim(); if (draft.qty > 0) draft.everStocked = true; await saveItem({...draft}); closeSheet(); };
+  openSheet({title:'Item', right:'Done', onRight:commit, body});
+  quick.querySelector('#d-use').onclick = async () => {
+    const q = Math.max(0, (draft.qty || 0) - 1); draft.qty = q;
+    if (q === 0) draft.onList = true;
+    await saveItem({...draft}); closeSheet();
+    toast(q === 0 ? `Last one used. Added to your list` : `${q} left`);
+  };
+  quick.querySelector('#d-add').onclick = async () => { draft.qty = (draft.qty || 0) + 1; draft.onList = false; draft.everStocked = true; await saveItem({...draft}); closeSheet(); toast(`You now have ${draft.qty}`); };
+  del.querySelector('#d-del').onclick = () => {
+    del.innerHTML = `<div class="section-f" style="text-align:center">Delete “${esc(draft.name)}” from your kitchen and list?</div><div class="btn-row"><button class="btn danger" id="d-del-no" style="color:var(--label)">Keep</button><button class="btn" id="d-del-yes" style="background:var(--red);color:#fff">Delete</button></div>`;
+    del.querySelector('#d-del-no').onclick = () => openItem(id);
+    del.querySelector('#d-del-yes').onclick = async () => { await store?.remove(id); closeSheet(); toast('Deleted'); };
+  };
+}
+
+/* ---------- New item (from scan or manual) ---------- */
+function openNewItem({barcode = '', name = '', category = '', photo = null, identify = false}){
+  const draft = {id:uid(), barcode, name, category: category || 'dry', qty:1, onList:false, createdAt:now()};
+  const body = document.createElement('div'); body.style.cssText = 'display:flex;flex-direction:column;gap:22px';
+  if (barcode) body.append(el(`<div class="status"><div class="big no">${SVG.q}</div><h3>Not in your kitchen</h3><p>You don’t have this one yet.</p><div class="code">${esc(barcode)}</div></div>`));
+
+  const g = el(`<div class="section"><div class="section-h">Name</div><div class="group"><div class="row"><span class="main" style="padding:0"><input class="text-input" id="n-name" placeholder="e.g. Chopped tomatoes 400g" autocomplete="off"></span><span id="n-spin"></span></div></div><div class="hint" id="n-hint" hidden></div></div>`);
+  const nameIn = g.querySelector('input'); nameIn.value = name;
+  body.append(g);
+  const picker = catPicker(draft.category, c => draft.category = c);
+  body.append(picker);
+  const qty = el(`<div class="section"><div class="group"><div class="row"><span class="main"><span class="title">How many</span></span></div></div></div>`);
+  qty.querySelector('.row').append(stepper(1, 1, v => draft.qty = v));
+  body.append(qty);
+  const actions = el(`<div class="confirm"><button class="btn primary" id="n-save">Add to Kitchen</button>${barcode ? '<button class="btn plain" id="n-list">Not Buying Now? Add to Shopping List</button>' : ''}</div>`);
+  body.append(actions);
+
+  const sync = () => { const ok = !!nameIn.value.trim(); $('#sheet-r').disabled = !ok; actions.querySelector('#n-save').disabled = !ok; };
+  nameIn.oninput = () => { userTyped = true; sync(); };
+  let userTyped = !!name;
+  const save = async (toList) => {
+    draft.name = nameIn.value.trim(); if (!draft.name) return;
+    if (toList) { draft.qty = 0; draft.onList = true; } else draft.everStocked = true;
+    await saveItem({...draft}); closeSheet();
+    toast(toList ? 'Added to your shopping list' : `${draft.name} added to ${CAT[draft.category].name}`);
+  };
+  openSheet({title: barcode ? 'New Item' : 'Add Item', right:'Add', onRight:() => save(false), body});
+  actions.querySelector('#n-save').onclick = () => save(false);
+  actions.querySelector('#n-list')?.addEventListener('click', () => save(true));
+  sync();
+  if (!name) setTimeout(() => { if (!identify) nameIn.focus(); }, 380);
+
+  if (identify && photo && sample && sampleImages) {
+    const spin = g.querySelector('#n-spin'), hint = g.querySelector('#n-hint');
+    spin.innerHTML = '<span class="spin" aria-label="Identifying"></span>';
+    nameIn.placeholder = 'Identifying product…';
+    identifyPhoto(photo).then(r => {
+      spin.innerHTML = '';
+      nameIn.placeholder = 'e.g. Chopped tomatoes 400g';
+      if (!r || !r.name) return;
+      if (!userTyped) { nameIn.value = r.name; sync(); }
+      if (CAT[r.category]) { draft.category = r.category; picker.set(r.category); }
+      hint.hidden = false; hint.innerHTML = `${SVG.sparkle}<span>Name and category suggested from your photo. Change them if they’re wrong.</span>`;
+    }).catch(() => { spin.innerHTML = ''; nameIn.placeholder = 'e.g. Chopped tomatoes 400g'; });
+  }
+}
+
+/* ---------- Found item (scan hit) ---------- */
+function openFound(it){
+  const q = it.qty || 0;
+  const body = document.createElement('div'); body.style.cssText = 'display:flex;flex-direction:column;gap:22px';
+  body.append(el(`<div class="status"><div class="big ${q > 0 ? 'yes' : 'no'}">${q > 0 ? SVG.check : SVG.q}</div><h3>${q > 0 ? `You have ${q} at home` : 'You’ve run out'}</h3><p>${esc(it.name)} · ${esc(CAT[it.category]?.name || 'Other')}</p>${it.onList ? '<p style="color:var(--tint);font-weight:500">Already on your shopping list</p>' : ''}</div>`));
+  const acts = el(`<div class="confirm">
+    <button class="btn primary" id="f-add">Add One to Kitchen</button>
+    <div class="btn-row"><button class="btn tinted" id="f-use" ${q > 0 ? '' : 'disabled'}>Used One</button><button class="btn tinted" id="f-list" ${it.onList ? 'disabled' : ''}>Add to List</button></div>
+    <button class="btn plain" id="f-open">Edit Item</button></div>`);
+  body.append(acts);
+  openSheet({title:'', left:'Close', body});
+  acts.querySelector('#f-add').onclick = async () => { it.qty = q + 1; it.onList = false; it.everStocked = true; await saveItem(it); closeSheet(); toast(`You now have ${it.qty}`); };
+  acts.querySelector('#f-use').onclick = async () => { it.qty = Math.max(0, q - 1); if (!it.qty) it.onList = true; await saveItem(it); closeSheet(); toast(it.qty ? `${it.qty} left` : 'Last one used. Added to your list'); };
+  acts.querySelector('#f-list').onclick = async () => { it.onList = true; await saveItem(it); closeSheet(); toast('Added to your shopping list'); };
+  acts.querySelector('#f-open').onclick = () => openItem(it.id);
+}
+
+function handleCode(code, photo){
+  code = String(code).replace(/\D/g, '');
+  const hit = byBarcode(code);
+  if (hit) openFound(hit); else openNewItem({barcode:code, photo, identify:true});
+}
+
+/* ---------- Scanning ---------- */
+// Fake barcode art in the viewfinder
+$('#bars').innerHTML = [2,1,3,1,1,2,1,3,2,1,1,2,3,1,2,1,1,3,1,2,2,1,3,1].map(w => `<i style="width:${w}px"></i>`).join('');
+
+$('#manual-code').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, ''); $('#manual-go').disabled = e.target.value.length < 6; });
+$('#manual-go').addEventListener('click', () => { const v = $('#manual-code').value; if (v.length >= 6) { handleCode(v); $('#manual-code').value = ''; $('#manual-go').disabled = true; } });
+$('#manual-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#manual-go').click(); });
+$('#scan-nobarcode').addEventListener('click', () => openNewItem({}));
+
+$('#scan-input').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  const label = $('#scan-label-text'); label.textContent = 'Reading barcode…';
+  try {
+    let code = await decodeFile(file);
+    if (!code && sample && sampleImages) { label.textContent = 'Looking closer…'; code = await readDigitsWithClaude(file); }
+    if (code) handleCode(code, file);
+    else openSheet({title:'', left:'Close', body:`<div class="status"><div class="big no">${SVG.q}</div><h3>Couldn’t read the barcode</h3><p>Hold the phone a little further back so the whole barcode fits, in good light, and try again. You can also type the number on the Scan tab.</p></div>`});
+  } finally { label.textContent = 'Scan Barcode'; }
+});
+
+let zx = null;
+function zxReader(){
+  if (zx || !window.ZXing) return zx;
+  const Z = window.ZXing, hints = new Map();
+  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.ITF]);
+  hints.set(Z.DecodeHintType.TRY_HARDER, true);
+  zx = new Z.MultiFormatReader(); zx.setHints(hints);
+  return zx;
+}
+async function loadImage(file){
+  try { return await createImageBitmap(file, {imageOrientation:'from-image'}); } catch {}
+  return new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = URL.createObjectURL(file); });
+}
+function decodeCanvas(c){
+  const Z = window.ZXing, r = zxReader(); if (!r) return null;
+  const ctx = c.getContext('2d', {willReadFrequently:true});
+  const {data} = ctx.getImageData(0, 0, c.width, c.height);
+  const lum = new Uint8ClampedArray(c.width * c.height);
+  for (let i = 0, j = 0; j < lum.length; i += 4, j++) lum[j] = (data[i] * 306 + data[i+1] * 601 + data[i+2] * 117) >> 10;
+  try { return r.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.RGBLuminanceSource(lum, c.width, c.height)))).getText(); }
+  catch { return null; } finally { r.reset(); }
+}
+async function decodeFile(file){
+  const img = await loadImage(file);
+  const w0 = img.width, h0 = img.height;
+  if ('BarcodeDetector' in window) {
+    try { const det = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf']}); const r = await det.detect(img); if (r[0]) return r[0].rawValue; } catch {}
+  }
+  for (const max of [1400, 900, 2200]) {
+    const s = Math.min(1, max / Math.max(w0, h0)), w = Math.round(w0 * s), h = Math.round(h0 * s);
+    for (const rot of [0, 90]) {
+      const c = document.createElement('canvas');
+      c.width = rot ? h : w; c.height = rot ? w : h;
+      const ctx = c.getContext('2d', {willReadFrequently:true});
+      if (rot) { ctx.translate(h, 0); ctx.rotate(Math.PI / 2); }
+      ctx.drawImage(img, 0, 0, w, h);
+      const t = decodeCanvas(c);
+      if (t) return t;
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  return null;
+}
+async function shrink(file, max = 1280){
+  const img = await loadImage(file);
+  const s = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, 'image/jpeg', .85));
+}
+const CAT_IDS = CATS.map(c => c.id).join(', ');
+async function identifyPhoto(file){
+  const blob = await shrink(file);
+  return sample.json(
+    `The attached image is a photo a shopper took of a grocery product's barcode, in their kitchen or at a shop. Identify the product from any visible packaging, label text or brand.
+Reply with JSON only: {"name": string, "category": string}.
+- "name": what a shopper would write on a list, brand + product + size if visible, under 40 characters, e.g. "Heinz Baked Beans 415g". Use "" if you can't tell what it is.
+- "category": the one of these ids where it's normally kept: ${CAT_IDS}. herbs = herbs & spices, dry = pasta/rice/flour/cereal/snacks, tinned = cans and jars, fridge = chilled, freezer = frozen, other = anything else.`,
+    {images:[blob], modelTier:'quick'}
+  ).catch(() => null);
+}
+async function readDigitsWithClaude(file){
+  try {
+    const blob = await shrink(file, 1600);
+    const r = await sample.json(`The attached photo shows a product barcode. Read the digits printed under the barcode. Reply with JSON only: {"digits": string} using "" if they aren't legible. Never guess digits.`, {images:[blob], modelTier:'quick'});
+    const d = String(r?.digits || '').replace(/\D/g, '');
+    return validEAN(d) ? d : null;
+  } catch { return null; }
+}
+
+boot();
+})();
+</script>
