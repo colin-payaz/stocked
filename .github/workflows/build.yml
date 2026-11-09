@@ -45,16 +45,18 @@ jobs:
           xcrun simctl status_bar "$DEVICE" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           xcrun simctl install "$DEVICE" build/Build/Products/Debug-iphonesimulator/Stocked.app
           mkdir -p screenshots
-          shoot() { sleep "$2"; xcrun simctl io "$DEVICE" screenshot "screenshots/$1.png"; }
           for MODE in light dark; do
             xcrun simctl ui "$DEVICE" appearance $MODE
-            xcrun simctl terminate "$DEVICE" com.payaz.Stocked || true
-            xcrun simctl launch "$DEVICE" com.payaz.Stocked -demoData YES
-            shoot "1-kitchen-$MODE" 8
-            xcrun simctl openurl "$DEVICE" "stocked://list"; shoot "2-list-$MODE" 3
-            xcrun simctl openurl "$DEVICE" "stocked://scan"; shoot "3-scan-$MODE" 3
-            xcrun simctl openurl "$DEVICE" "stocked://kitchen"
+            for TAB in kitchen list scan; do
+              xcrun simctl terminate "$DEVICE" com.payaz.Stocked || true
+              xcrun simctl launch --console-pty --terminate-running-process "$DEVICE" com.payaz.Stocked -demoData YES -startTab $TAB > "screenshots/console-$TAB-$MODE.txt" 2>&1 &
+              sleep 9
+              xcrun simctl io "$DEVICE" screenshot "screenshots/$TAB-$MODE.png"
+            done
           done
+          xcrun simctl terminate "$DEVICE" com.payaz.Stocked || true
+          cp ~/Library/Logs/DiagnosticReports/Stocked*.ips screenshots/ 2>/dev/null || true
+          ls -la screenshots
 
       - name: Save screenshots to the ci-screenshots branch
         if: github.ref == 'refs/heads/main'

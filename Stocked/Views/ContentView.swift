@@ -31,6 +31,14 @@ struct MainTabs: View {
     init(kitchen: Kitchen) {
         self.kitchen = kitchen
         _listItems = FetchRequest(fetchRequest: Item.request(in: kitchen, predicate: NSPredicate(format: "onList == YES")))
+        #if DEBUG
+        // Lets the Simulator screenshots open on a chosen tab: -startTab list
+        switch UserDefaults.standard.string(forKey: "startTab") {
+        case "list": _tab = State(initialValue: .list)
+        case "scan": _tab = State(initialValue: .scan)
+        default: break
+        }
+        #endif
     }
 
     var body: some View {
