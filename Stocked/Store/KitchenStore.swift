@@ -92,6 +92,9 @@ final class KitchenStore: NSObject, ObservableObject {
 
         if kitchen != chosen { kitchen = chosen }
         share = (try? persistence.container.fetchShares(matching: [chosen.objectID]))?[chosen.objectID]
+        #if DEBUG
+        seedDemoDataIfRequested()
+        #endif
     }
 
     /// Items currently in the kitchen.
