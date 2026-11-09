@@ -47,6 +47,7 @@ jobs:
           mkdir -p screenshots
           for MODE in light dark; do
             xcrun simctl ui "$DEVICE" appearance $MODE
+            sleep 5
             for TAB in kitchen list scan; do
               xcrun simctl terminate "$DEVICE" com.payaz.Stocked || true
               xcrun simctl launch --console-pty --terminate-running-process "$DEVICE" com.payaz.Stocked -demoData YES -disableCloudSync YES -startTab $TAB > "screenshots/console-$TAB-$MODE.txt" 2>&1 &
