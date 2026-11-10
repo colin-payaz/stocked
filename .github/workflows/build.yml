@@ -35,6 +35,30 @@ jobs:
             | tee build.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build.log
 
+      - name: Build the demo for Simulator and browser preview
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Stocked.xcodeproj \
+            -scheme Stocked \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            -derivedDataPath build-demo \
+            CODE_SIGNING_ALLOWED=NO \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS='DEBUG DEMO' \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          cd build-demo/Build/Products/Debug-iphonesimulator
+          ditto -c -k --sequesterRsrc --keepParent Stocked.app "$GITHUB_WORKSPACE/Stocked-Simulator.zip"
+
+      - name: Upload demo build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stocked-Simulator
+          path: Stocked-Simulator.zip
+          if-no-files-found: ignore
+
       - name: Take screenshots in the Simulator
         continue-on-error: true
         run: |

@@ -12,6 +12,10 @@ final class PersistenceController {
     private(set) var sharedStore: NSPersistentStore?
 
     init(inMemory: Bool = false) {
+        #if DEMO
+        // The browser/Simulator demo build: sample kitchen, no iCloud.
+        UserDefaults.standard.register(defaults: ["demoData": true, "disableCloudSync": true])
+        #endif
         container = NSPersistentCloudKitContainer(name: "Stocked", managedObjectModel: StockedModel.shared)
 
         let directory: URL
